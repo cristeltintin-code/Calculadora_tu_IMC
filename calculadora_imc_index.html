@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calculadora de IMC</title>
+  <style>
+    :root{--bg:#f6f8fa;--card:#ffffff;--accent:#0b73ff;--danger:#e53e3e;--ok:#16a34a}
+    body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); margin:0; padding:32px; color:#0f172a}
+    .container{max-width:780px;margin:0 auto}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+    h1{font-size:1.25rem;margin:0}
+    .card{background:var(--card);border-radius:12px;padding:20px;box-shadow:0 6px 18px rgba(2,6,23,0.06)}
+    form .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    label{font-size:0.85rem;color:#334155}
+    input,select{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:1rem}
+    .controls{display:flex;gap:8px;margin-top:12px}
+    button{padding:10px 14px;border-radius:8px;border:0;background:var(--accent);color:white;font-weight:600;cursor:pointer}
+    button.secondary{background:#64748b}
+    .result{margin-top:18px;padding:14px;border-radius:10px;border:1px solid #e6e9ef;background:#fcfeff}
+    .bmi-value{font-size:1.5rem;font-weight:700}
+    .category{font-weight:700;margin-top:6px}
+    .meta{font-size:0.9rem;color:#475569}
+    footer{margin-top:18px;font-size:0.85rem;color:#475569}
+    @media(max-width:620px){form .grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Calculadora de Índice de Masa Corporal (IMC)</h1>
+    </header>
+
+    <section class="card" aria-labelledby="calculadora">
+      <h2 id="calculadora" style="font-size:1rem;margin:0 0 12px 0">Introduce tu peso y estatura</h2>
+
+      <form id="form-imc" onsubmit="event.preventDefault(); calcularIMC();">
+        <div class="grid">
+          <div>
+            <label for="peso">Peso</label>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <input id="peso" name="peso" inputmode="decimal" placeholder="ej. 70" aria-describedby="pesoHelp">
+              <select id="peso-unidad" aria-label="unidad de peso">
+                <option value="kg">kg</option>
+                <option value="lb">lb</option>
+              </select>
+            </div>
+            <div id="pesoHelp" class="meta">Kilogramos preferible. Si usas libras, se convertirá automáticamente.</div>
+          </div>
+
+          <div>
+            <label for="estatura">Estatura</label>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <input id="estatura" name="estatura" inputmode="decimal" placeholder="ej. 170" aria-describedby="estHelp">
+              <select id="est-unidad" aria-label="unidad de estatura">
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+                <option value="in">in</option>
+              </select>
+            </div>
+            <div id="estHelp" class="meta">Introduce en centímetros o metros. Si usas pulgadas, se convertirá automáticamente.</div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button type="submit">Calcular</button>
+          <button type="button" class="secondary" onclick="resetFormulario()">Limpiar</button>
+          <button type="button" class="secondary" onclick="copiarResultado()">Copiar resultado</button>
+        </div>
+      </form>
+
+      <div id="resultado" class="result" hidden aria-live="polite"></div>
+
+      <footer>
+        <div class="meta">Clasificación basada en la OMS: <em>IMC = peso (kg) ÷ altura (m)<sup>2</sup></em>. Valores orientativos.</div>
+      </footer>
+    </section>
+  </div>
+
+  <script>
+    function calcularIMC(){
+      const pesoEl = document.getElementById('peso');
+      const estEl = document.getElementById('estatura');
+      const pesoUnidad = document.getElementById('peso-unidad').value;
+      const estUnidad = document.getElementById('est-unidad').value;
+      const resultado = document.getElementById('resultado');
+
+      let peso = parseFloat(pesoEl.value.replace(',', '.'));
+      let est = parseFloat(estEl.value.replace(',', '.'));
+
+      // Validación básica
+      if (!isFinite(peso) || peso <= 0){ mostrarError('Peso inválido. Introduce un número mayor que 0.'); return }
+      if (!isFinite(est) || est <= 0){ mostrarError('Estatura inválida. Introduce un número mayor que 0.'); return }
+
+      // Convertir unidades a kg y metros
+      if (pesoUnidad === 'lb') peso = peso * 0.45359237;
+      if (estUnidad === 'cm') est = est / 100;
+      if (estUnidad === 'in') est = est * 0.0254;
+
+      if (est <= 0){ mostrarError('Estatura inválida tras conversión.'); return }
+
+      const bmi = peso / (est * est);
+      const bmiRounded = Math.round(bmi * 100) / 100;
+
+      // Clasificación (OMS)
+      let categoria = '';
+      let color = '';
+      let recomendacion = '';
+
+      if (bmi < 18.5){ categoria = 'Bajo peso'; color = '#0b73ff'; recomendacion = 'Consultar con profesional de salud si hay pérdida de peso involuntaria.' }
+      else if (bmi < 25){ categoria = 'Normopeso'; color = '#16a34a'; recomendacion = 'Peso dentro del rango considerado saludable.' }
+      else if (bmi < 30){ categoria = 'Sobrepeso'; color = '#f59e0b'; recomendacion = 'Valorar hábitos alimentarios y actividad física.' }
+      else if (bmi < 35){ categoria = 'Obesidad grado I'; color = '#f97316'; recomendacion = 'Se recomienda evaluación médica y plan de intervención.' }
+      else if (bmi < 40){ categoria = 'Obesidad grado II'; color = '#ef4444'; recomendacion = 'Riesgo aumentado de enfermedades cardiometabólicas; buscar evaluación.' }
+      else { categoria = 'Obesidad grado III (mórbida)'; color = '#c026d3'; recomendacion = 'Alta prioridad de atención médica y valoración multidisciplinaria.' }
+
+      resultado.hidden = false;
+      resultado.innerHTML = `
+        <div class=\"bmi-value\">IMC: ${bmiRounded.toFixed(2)}</div>
+        <div class=\"category\" style=\"color:${color}\">${categoria}</div>
+        <div class=\"meta\" style=\"margin-top:8px\">${recomendacion}</div>
+        <div class=\"meta\" style=\"margin-top:8px;font-size:0.85rem;color:#64748b\">(Cálculo aproximado; no sustituye una evaluación clínica.)</div>
+      `;
+
+      // Guardar último cálculo en sessionStorage para recuperación rápida
+      sessionStorage.setItem('imc_last', JSON.stringify({bmi:bmiRounded, categoria}));
+    }
+
+    function mostrarError(msg){
+      const resultado = document.getElementById('resultado');
+      resultado.hidden = false;
+      resultado.innerHTML = `<div style=\"color: #b91c1c; font-weight:700\">Error</div><div class=\"meta\">${msg}</div>`;
+    }
+
+    function resetFormulario(){
+      document.getElementById('form-imc').reset();
+      const r = document.getElementById('resultado'); r.hidden = true; r.innerHTML = '';
+      sessionStorage.removeItem('imc_last');
+    }
+
+    function copiarResultado(){
+      const last = sessionStorage.getItem('imc_last');
+      if (!last){ alert('No hay resultado para copiar. Calcula primero.'); return }
+      const data = JSON.parse(last);
+      const text = `IMC: ${data.bmi.toFixed(2)} - ${data.categoria}`;
+      navigator.clipboard?.writeText(text).then(()=> alert('Resultado copiado al portapapeles.'), ()=> alert('No se pudo copiar.'));
+    }
+
+    // Autorrellenar si hay resultado reciente
+    window.addEventListener('load', ()=>{
+      const last = sessionStorage.getItem('imc_last');
+      if (last){
+        const data = JSON.parse(last);
+        document.getElementById('resultado').hidden = false;
+        document.getElementById('resultado').innerHTML = `<div class=\"bmi-value\">IMC: ${data.bmi.toFixed(2)}</div><div class=\"category\">${data.categoria}</div>`;
+      }
+    });
+  </script>
+</body>
+</html>
